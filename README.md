@@ -51,8 +51,8 @@ flowchart LR
 
 | Path | What it does |
 |---|---|
-| `terraform/bootstrap` | S3 bucket (versioned, KMS-encrypted, public access blocked) and DynamoDB table for remote state and locking |
-| `terraform/envs/dev` | VPC across 3 AZs, EKS cluster with managed node group, EBS CSI driver via IRSA, ECR repo, GitHub OIDC role, Argo CD install |
+| `terraform/bootstrap` | S3 bucket (versioned, public access blocked) and DynamoDB lock table, both encrypted with a customer-managed KMS key with rotation |
+| `terraform/envs/dev` | VPC across 3 pinned AZs, EKS cluster with managed node group, EBS CSI driver via IRSA, ECR repo, GitHub OIDC role, Argo CD install |
 | `terraform/modules/github-oidc` | Reusable module that lets GitHub Actions assume an AWS role with short-lived tokens |
 | `app/` | Python service exposing request, latency and build-info metrics |
 | `charts/demo-app` | Helm chart: zero-downtime rolling updates, HPA, PodDisruptionBudget, zone spread, non-root and read-only filesystem |

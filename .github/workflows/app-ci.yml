@@ -53,6 +53,10 @@ jobs:
       id-token: write
     outputs:
       image_tag: ${{ steps.meta.outputs.tag }}
+      pushed: ${{ steps.push.outputs.pushed }}
+    env:
+      # Empty until you add the secret; AWS steps are skipped until then
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -73,6 +77,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Note when AWS is not configured yet
+        if: github.event_name != 'pull_request' && env.AWS_ROLE_ARN == ''
+        run: echo "::notice::AWS_ROLE_ARN secret not set. Image built and scanned; push and deploy skipped."
+
       - name: Scan image (fail on HIGH/CRITICAL with a fix available)
         uses: aquasecurity/trivy-action@0.28.0
         with:
@@ -82,31 +90,33 @@ jobs:
           exit-code: "1"
 
       - name: Configure AWS credentials (OIDC)
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && env.AWS_ROLE_ARN != ''
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Log in to ECR
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && env.AWS_ROLE_ARN != ''
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Push image
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && env.AWS_ROLE_ARN != ''
+        id: push
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
           TAG: ${{ steps.meta.outputs.tag }}
         run: |
           docker tag "demo-app:${TAG}" "${REGISTRY}/${ECR_REPOSITORY}:${TAG}"
           docker push "${REGISTRY}/${ECR_REPOSITORY}:${TAG}"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
 
   deploy:
     # GitOps: CI never touches the cluster. It commits the new tag and
     # Argo CD pulls the change.
     needs: build
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: needs.build.outputs.pushed == 'true' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write

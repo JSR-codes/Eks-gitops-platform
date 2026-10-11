@@ -4,6 +4,12 @@ variable "region" {
   default     = "us-east-1"
 }
 
+variable "az_suffixes" {
+  description = "Availability Zone letters to use in the region (e.g. a, b, c)."
+  type        = list(string)
+  default     = ["a", "b", "c"]
+}
+
 variable "cluster_name" {
   description = "EKS cluster name."
   type        = string

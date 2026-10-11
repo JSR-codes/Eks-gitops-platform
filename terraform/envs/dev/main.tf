@@ -1,11 +1,15 @@
+# Pin the exact AZs so the subnet layout never shifts if AWS adds a zone
 data "aws_availability_zones" "available" {
   state = "available"
+
+  filter {
+    name   = "zone-name"
+    values = [for s in var.az_suffixes : "${var.region}${s}"]
+  }
 }
 
-data "aws_caller_identity" "current" {}
-
 locals {
-  azs = slice(data.aws_availability_zones.available.names, 0, 3)
+  azs = data.aws_availability_zones.available.names
 
   tags = {
     Project     = "eks-gitops-platform"
