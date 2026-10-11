@@ -1,0 +1,5 @@
+apiVersion: v2
+name: root-app
+description: Argo CD "app of apps" root. Installed once by Terraform.
+type: application
+version: 0.1.0

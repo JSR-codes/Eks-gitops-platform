@@ -1,0 +1,5 @@
+# Environment overrides for dev. CI updates image.repository/image.tag here,
+# and that commit is what Argo CD deploys.
+image:
+  repository: 123456789012.dkr.ecr.us-east-1.amazonaws.com/demo-app
+  tag: "bootstrap"

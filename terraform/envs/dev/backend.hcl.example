@@ -1,0 +1,4 @@
+# Copy to backend.hcl and fill in from `terraform -chdir=terraform/bootstrap output`
+bucket         = "eks-gitops-tfstate-123456789012"
+dynamodb_table = "eks-gitops-tflock"
+region         = "us-east-1"

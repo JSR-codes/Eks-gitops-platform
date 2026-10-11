@@ -1,0 +1,93 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: demo-app-rules
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    # Recording rules keep dashboards and SLO alerts cheap to evaluate
+    - name: demo-app.recording
+      interval: 30s
+      rules:
+        - record: demo_app:requests:rate5m
+          expr: sum(rate(http_requests_total{namespace="demo"}[5m]))
+        - record: demo_app:errors:rate5m
+          expr: sum(rate(http_requests_total{namespace="demo",status=~"5.."}[5m]))
+        - record: demo_app:error_ratio:rate5m
+          expr: demo_app:errors:rate5m / clamp_min(demo_app:requests:rate5m, 1e-9)
+        - record: demo_app:error_ratio:rate30m
+          expr: |
+            sum(rate(http_requests_total{namespace="demo",status=~"5.."}[30m]))
+            / clamp_min(sum(rate(http_requests_total{namespace="demo"}[30m])), 1e-9)
+        - record: demo_app:error_ratio:rate1h
+          expr: |
+            sum(rate(http_requests_total{namespace="demo",status=~"5.."}[1h]))
+            / clamp_min(sum(rate(http_requests_total{namespace="demo"}[1h])), 1e-9)
+        - record: demo_app:error_ratio:rate6h
+          expr: |
+            sum(rate(http_requests_total{namespace="demo",status=~"5.."}[6h]))
+            / clamp_min(sum(rate(http_requests_total{namespace="demo"}[6h])), 1e-9)
+        - record: demo_app:latency_p95:5m
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le) (rate(http_request_duration_seconds_bucket{namespace="demo"}[5m])))
+
+    - name: demo-app.alerts
+      rules:
+        - alert: DemoAppDown
+          expr: absent(up{namespace="demo", job=~".*demo-app.*"} == 1)
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "demo-app has no healthy scrape targets"
+            description: "Prometheus cannot scrape any demo-app pod for 2 minutes."
+            runbook_url: "https://github.com/JSR-codes/eks-gitops-platform/blob/main/docs/runbook.md#demoappdown"
+
+        # Multi-window burn-rate alerts for a 99.5% availability SLO
+        # (error budget = 0.5%). See the Google SRE workbook, chapter 5.
+        - alert: DemoAppErrorBudgetFastBurn
+          expr: |
+            demo_app:error_ratio:rate1h > (14.4 * 0.005)
+            and
+            demo_app:error_ratio:rate5m > (14.4 * 0.005)
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "demo-app is burning error budget 14x faster than allowed"
+            description: "Error ratio over 1h is {{ $value | humanizePercentage }}. At this rate the 30-day budget is gone in ~2 days."
+            runbook_url: "https://github.com/JSR-codes/eks-gitops-platform/blob/main/docs/runbook.md#demoapperrorbudgetburn"
+
+        - alert: DemoAppErrorBudgetSlowBurn
+          expr: |
+            demo_app:error_ratio:rate6h > (6 * 0.005)
+            and
+            demo_app:error_ratio:rate30m > (6 * 0.005)
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "demo-app is steadily burning error budget"
+            description: "Error ratio over 6h is {{ $value | humanizePercentage }}."
+            runbook_url: "https://github.com/JSR-codes/eks-gitops-platform/blob/main/docs/runbook.md#demoapperrorbudgetburn"
+
+        - alert: DemoAppHighLatency
+          expr: demo_app:latency_p95:5m > 0.5
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "demo-app p95 latency above 500ms"
+            description: "p95 latency is {{ $value | humanizeDuration }}."
+            runbook_url: "https://github.com/JSR-codes/eks-gitops-platform/blob/main/docs/runbook.md#demoapphighlatency"
+
+        - alert: DemoAppPodCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total{namespace="demo"}[15m]) > 3
+          labels:
+            severity: warning
+          annotations:
+            summary: "demo-app pod {{ $labels.pod }} is restarting repeatedly"
+            runbook_url: "https://github.com/JSR-codes/eks-gitops-platform/blob/main/docs/runbook.md#demoapppodcrashlooping"

@@ -1,0 +1,37 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: argocd-rules
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: argocd.alerts
+      rules:
+        - alert: ArgoCDAppOutOfSync
+          expr: argocd_app_info{sync_status!="Synced"} == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Argo CD app {{ $labels.name }} has been out of sync for 15m"
+            description: "Git and the cluster disagree. Check the app in the Argo CD UI for a failing sync."
+            runbook_url: "https://github.com/JSR-codes/eks-gitops-platform/blob/main/docs/runbook.md#argocdappoutofsync"
+
+        - alert: ArgoCDAppDegraded
+          expr: argocd_app_info{health_status=~"Degraded|Missing"} == 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Argo CD app {{ $labels.name }} is {{ $labels.health_status }}"
+            runbook_url: "https://github.com/JSR-codes/eks-gitops-platform/blob/main/docs/runbook.md#argocdappdegraded"
+
+        - alert: ArgoCDSyncFailed
+          expr: increase(argocd_app_sync_total{phase=~"Error|Failed"}[10m]) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: "Argo CD sync failed for {{ $labels.name }}"
+            runbook_url: "https://github.com/JSR-codes/eks-gitops-platform/blob/main/docs/runbook.md#argocdappoutofsync"

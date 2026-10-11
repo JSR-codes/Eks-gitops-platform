@@ -1,0 +1,42 @@
+global:
+  domain: argocd.local
+
+configs:
+  params:
+    # TLS is terminated at the port-forward / ingress in this demo
+    server.insecure: true
+  cm:
+    timeout.reconciliation: 60s
+
+server:
+  service:
+    type: ClusterIP
+  metrics:
+    enabled: true
+    # ServiceMonitors are added later by gitops/monitoring once the
+    # Prometheus Operator CRDs exist, so they are off at bootstrap.
+    serviceMonitor:
+      enabled: false
+
+controller:
+  metrics:
+    enabled: true
+    # ServiceMonitors are added later by gitops/monitoring once the
+    # Prometheus Operator CRDs exist, so they are off at bootstrap.
+    serviceMonitor:
+      enabled: false
+
+repoServer:
+  metrics:
+    enabled: true
+    # ServiceMonitors are added later by gitops/monitoring once the
+    # Prometheus Operator CRDs exist, so they are off at bootstrap.
+    serviceMonitor:
+      enabled: false
+
+applicationSet:
+  metrics:
+    enabled: true
+
+notifications:
+  enabled: false

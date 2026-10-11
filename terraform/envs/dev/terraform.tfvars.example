@@ -1,0 +1,10 @@
+region       = "us-east-1"
+cluster_name = "gitops-dev"
+
+# Your IAM user/role so you can run kubectl
+admin_principal_arns = [
+  # "arn:aws:iam::123456789012:user/your-user",
+]
+
+# Set false if your account already has token.actions.githubusercontent.com
+create_github_oidc_provider = true

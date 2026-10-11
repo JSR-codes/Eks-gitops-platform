@@ -1,0 +1,15 @@
+# Checks skipped on purpose, with the reason. Everything else must pass.
+skip-check:
+  # Public EKS endpoint is intentional for a personal demo cluster; restrict
+  # cluster_endpoint_public_access_cidrs or go private in production.
+  - CKV_AWS_39
+  - CKV_AWS_38
+  # State bucket: access logging and cross-region replication are overkill for
+  # a single-developer demo and add cost.
+  - CKV_AWS_18
+  - CKV_AWS_144
+  - CKV2_AWS_62
+  # S3 lifecycle config on a versioned state bucket is optional here.
+  - CKV2_AWS_61
+  # Third-party registry modules are pinned by version constraint, not commit hash.
+  - CKV_TF_1
